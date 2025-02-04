@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+
 	"net/http"
 
 	"encoding/json"
@@ -9,40 +10,56 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var task string = "по умолчанию"
+var task []Message
 
-type requestBody struct {
-	Task string `json:"task"` // Поле Message для получения данных из JSON
-}
+func GetHandler(w http.ResponseWriter, r *http.Request) {
 
-func HelloHandler(w http.ResponseWriter, r *http.Request) {
-
-	fmt.Fprintf(w, "hello, %s", task)
-
-}
-
-func TaskHandler(w http.ResponseWriter, r *http.Request) {
-	var reqBody requestBody
-
-	err := json.NewDecoder(r.Body).Decode(&reqBody)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	result := DB.Find(&task)
+	if result.Error != nil {
+		http.Error(w, "Ошибка при получении ", http.StatusInternalServerError)
 		return
 	}
 
-	task = reqBody.Task
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(task)
+}
 
-	fmt.Fprintf(w, "Сообщение обновлено: %s\n", task)
+func PostHandler(w http.ResponseWriter, r *http.Request) {
+	var reqBody Message
+
+	err := json.NewDecoder(r.Body).Decode(&reqBody)
+	if err != nil {
+		http.Error(w, "Ошибка при отправлении", http.StatusBadRequest)
+		return
+	}
+
+	task := Message{
+		Task:   reqBody.Task,
+		IsDone: reqBody.IsDone,
+	}
+
+	result := DB.Create(&task)
+	if result.Error != nil {
+		http.Error(w, "Ошибка при сохранении задачи", http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Fprintf(w, "Сообщение добавлено: %s\n", reqBody.Task)
 
 }
 
 func main() {
+
+	InitDB()
+
+	DB.AutoMigrate(&Message{})
+
 	router := mux.NewRouter()
 	// наше приложение будет слушать запросы на localhost:8080/api/hello
 
-	router.HandleFunc("/api/task", TaskHandler).Methods("POST") // Обработчик для POST
+	router.HandleFunc("/api/task", PostHandler).Methods("POST") // Обработчик для POST
 
-	router.HandleFunc("/api/hello", HelloHandler).Methods("GET")
+	router.HandleFunc("/api/hello", GetHandler).Methods("GET")
 
 	http.ListenAndServe(":8080", router)
 
