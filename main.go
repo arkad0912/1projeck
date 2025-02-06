@@ -105,7 +105,7 @@ func main() {
 
 	router.HandleFunc("/api/task", PostHandler).Methods("POST") // Обработчик для POST
 
-	router.HandleFunc("/api/hello", GetHandler).Methods("GET")
+	router.HandleFunc("/api/task", GetHandler).Methods("GET")
 
 	router.HandleFunc("/api/task/{id}", PatchHandler).Methods("PATCH") // Обработчик для PATCH
 
